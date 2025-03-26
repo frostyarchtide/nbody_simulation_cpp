@@ -16,10 +16,14 @@
 #include "recorder.hpp"
 #include "window.hpp"
 
+const glm::uvec2 RESOLUTION = glm::uvec2(800, 600);
+const float ASPECT_RATIO = RESOLUTION.y / (float) RESOLUTION.x;
 const unsigned int PARTICLE_COUNT = 2 << 14;
 const unsigned int WORKGROUP_SIZE = 256;
 const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
+const unsigned int CIRCLE_VERTICES = 64;
+const float CIRCLE_RADIUS = 0.01f;
 
 typedef struct particle {
     glm::vec2 position;
@@ -27,17 +31,24 @@ typedef struct particle {
 } particle;
 
 int main() {
-    Window window(800, 600, "N-Body Simulation");
+    Window window(RESOLUTION.x, RESOLUTION.y, "N-Body Simulation");
     Recorder recorder(window, FRAMERATE, "recordings");
 
-    float vertices[] = {
-        0.0f, 0.0f,
-    };
+    float vertices[(CIRCLE_VERTICES + 2) * 2] = { 0.0f };
+    for (unsigned int i = 0; i < CIRCLE_VERTICES; i++) {
+        float angle = 2.0 * M_PI * i / (float) CIRCLE_VERTICES;
+        vertices[(i + 1) * 2] = CIRCLE_RADIUS * cos(angle);
+        vertices[(i + 1) * 2 + 1] = CIRCLE_RADIUS * sin(angle);
+    }
+    vertices[(CIRCLE_VERTICES + 1) * 2] = vertices[2];
+    vertices[(CIRCLE_VERTICES + 1) * 2 + 1] = vertices[3];
 
     unsigned int vertex_buffer;
     glGenBuffers(1, &vertex_buffer);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    glEnableVertexAttribArray(0);
 
     std::string vertex_shader_source =
         #include "shaders/shader.glsl.vert"
@@ -103,23 +114,25 @@ int main() {
     glLinkProgram(compute_program);
 
     particle particles[PARTICLE_COUNT];
-    if ((sizeof(particles) / sizeof(particle)) % WORKGROUP_SIZE != 0)
+    if (PARTICLE_COUNT % WORKGROUP_SIZE != 0)
         debug::print_error(
             std::string("Particle count is not factorable by workgroup size (")
-            + std::to_string(sizeof(particles) / sizeof(particle))
+            + std::to_string(PARTICLE_COUNT)
             + " % "
             + std::to_string(WORKGROUP_SIZE)
             + " == "
-            + std::to_string((sizeof(particles) / sizeof(particle)) % WORKGROUP_SIZE)
+            + std::to_string(PARTICLE_COUNT % WORKGROUP_SIZE)
             + ")",
             true
         );
 
-    for (unsigned int i = 0; i < sizeof(particles) / sizeof(particle); i++) {
+    for (unsigned int i = 0; i < PARTICLE_COUNT; i++) {
         float angle = 2.0f * M_PI * (rand() / (float) RAND_MAX);
         float distance = rand() / (float) RAND_MAX;
         particles[i].position = glm::vec2(cos(angle), sin(angle)) * distance;
-        particles[i].velocity = glm::rotate(glm::normalize(particles[i].position), M_PI_2f) * glm::sqrt(0.05f / distance);
+        particles[i].velocity =
+            glm::rotate(glm::normalize(particles[i].position), M_PI_2f)
+            * glm::sqrt(0.05f / distance);
     }
 
     unsigned int storage_buffer;
@@ -128,23 +141,36 @@ int main() {
     glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(particles), particles, GL_DYNAMIC_DRAW);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffer);
     
-    glm::mat4 view_matrix = glm::ortho(-400.0f, 400.0f, -300.0f, 300.0f);
-    float view_scale = 100.0f;
+    glUseProgram(shader_program);
+    glm::mat4 projection_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(ASPECT_RATIO, 1.0f, 1.0f));
+    glUniformMatrix4fv(
+        glGetUniformLocation(shader_program, "projection_matrix"),
+        1,
+        GL_FALSE,
+        &projection_matrix[0][0]
+    );
+
+    float view_scale = 1.0f;
 
     while (!window.should_close()) {
         glfwPollEvents();
 
         glUseProgram(compute_program);
-        glDispatchCompute(sizeof(particles) / sizeof(particle) / WORKGROUP_SIZE, 1, 1);
+        glDispatchCompute(PARTICLE_COUNT / WORKGROUP_SIZE, 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shader_program);
-        glm::mat4 new_view_matrix = glm::scale(view_matrix, glm::vec3(view_scale));
-        glUniformMatrix4fv(glGetUniformLocation(shader_program, "view_matrix"), 1, GL_FALSE, &new_view_matrix[0][0]);
+        glm::mat4 view_matrix = glm::scale(glm::mat4(1.0f), glm::vec3(view_scale));
+        glUniformMatrix4fv(
+            glGetUniformLocation(shader_program, "view_matrix"),
+            1,
+            GL_FALSE,
+            &view_matrix[0][0]
+        );
 
-        glDrawArraysInstanced(GL_POINTS, 0, 1, sizeof(particles) / sizeof(particle));
+        glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, CIRCLE_VERTICES + 2, PARTICLE_COUNT);
         recorder.update();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -158,7 +184,7 @@ int main() {
             | ImGuiWindowFlags_NoTitleBar;
 
         ImGui::Begin("Debug", NULL, flags);
-        ImGui::DragFloat("View Scale", &view_scale, 1.0f, 0.0f, 1000.0f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::DragFloat("View Scale", &view_scale, 0.1f, 0.0f, 10.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
         if (ImGui::Button("Start Recording")) recorder.start_recording();
         if (ImGui::Button("Stop Recording")) recorder.stop_recording();
         ImGui::End();
