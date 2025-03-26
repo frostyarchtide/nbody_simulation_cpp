@@ -1,17 +1,20 @@
 R"(
 #version 430
 
+struct particle {
+    vec2 position;
+    vec2 velocity;
+};
+
 const float PI = acos(-1.0);
 
 layout(location = 0) in vec2 position;
-layout(binding = 0, std430) readonly buffer StorageBuffer {
-    vec2 points[];
+layout(binding = 1, std430) readonly buffer StorageBuffer {
+    particle particles[];
 } storage_buffer;
 
-uniform uint instances;
-
 void main() {
-    vec2 offset = storage_buffer.points[gl_InstanceID];
+    vec2 offset = storage_buffer.particles[gl_InstanceID].position;
     gl_Position = vec4(position + offset, 0.0, 1.0);
 }
 )"

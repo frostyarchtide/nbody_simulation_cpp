@@ -81,7 +81,6 @@ int main() {
     unsigned int storage_buffers[2];
     glGenBuffers(2, storage_buffers);
     for (unsigned int i = 0; i < 2; i++) {
-        debug::print_info(std::to_string(storage_buffers[i]));
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, storage_buffers[i]);
         glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(particles), particles, GL_DYNAMIC_DRAW);
     }
@@ -91,13 +90,14 @@ int main() {
 
     unsigned int new_buffer = 1;
     
-    glUniform1ui(glGetUniformLocation(shader_program, "instances"), sizeof(particles) / sizeof(particle));
+    glUseProgram(compute_program);
     glUniform1ui(glGetUniformLocation(compute_program, "instances"), sizeof(particles) / sizeof(particle));
 
     while (!window.should_close()) {
         glfwPollEvents();
 
         glUseProgram(compute_program);
+        glUniform1f(glGetUniformLocation(compute_program, "delta_time"), window.get_delta_time());
         glDispatchCompute(sizeof(particles) / sizeof(particle), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
