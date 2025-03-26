@@ -12,6 +12,7 @@
 #include "window.hpp"
 
 const float G = 1.0e-3;
+const unsigned int PARTICLES = 2 << 10;
 
 int main() {
     Window window(800, 600, "N-Body Simulation");
@@ -53,8 +54,8 @@ int main() {
 
     glUseProgram(shader_program);
 
-    vec2 velocities[2 << 9] = { 0.0f, 0.0f };
-    vec2 points[2 << 9];
+    vec2 velocities[PARTICLES] = { 0.0f, 0.0f };
+    vec2 points[PARTICLES];
     for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
         points[i] = {
             2.0f * (rand() / (float) RAND_MAX - 0.5f),
