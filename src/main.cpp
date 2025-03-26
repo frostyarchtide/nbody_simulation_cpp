@@ -13,10 +13,12 @@
 #include <glm/gtx/rotate_vector.hpp>
 
 #include "debug.hpp"
+#include "recorder.hpp"
 #include "window.hpp"
 
 const unsigned int PARTICLE_COUNT = 2 << 14;
 const unsigned int WORKGROUP_SIZE = 256;
+const float DELTA_TIME = 1.0f / 60.0f;
 
 typedef struct particle {
     glm::vec2 position;
@@ -25,6 +27,7 @@ typedef struct particle {
 
 int main() {
     Window window(800, 600, "N-Body Simulation");
+    Recorder recorder(window, "images");
 
     float vertices[] = {
         0.0f, 0.0f,
@@ -82,6 +85,11 @@ int main() {
         std::string("__PARTICLE_COUNT__").length(),
         std::to_string(PARTICLE_COUNT)
     );
+    compute_shader_source.replace(
+        compute_shader_source.find("__DELTA_TIME__"),
+        std::string("__DELTA_TIME__").length(),
+        std::to_string(DELTA_TIME)
+    );
     const char* compute_shader_source_c_str = compute_shader_source.c_str();
 
     unsigned int compute_shader = glCreateShader(GL_COMPUTE_SHADER);
@@ -126,7 +134,6 @@ int main() {
         glfwPollEvents();
 
         glUseProgram(compute_program);
-        glUniform1f(glGetUniformLocation(compute_program, "delta_time"), window.get_delta_time());
         glDispatchCompute(sizeof(particles) / sizeof(particle) / WORKGROUP_SIZE, 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
@@ -149,10 +156,6 @@ int main() {
             | ImGuiWindowFlags_NoTitleBar;
 
         ImGui::Begin("Debug", NULL, flags);
-        ImGui::Text("%d fps", (int) (1.0f / window.get_delta_time() + 0.5f));
-        ImGui::Text("%.2f ms", window.get_delta_time() * 1000.0f);
-        ImGui::Text("%lu bodies", sizeof(particles) / sizeof(particle));
-
         ImGui::DragFloat("View Scale", &view_scale, 1.0f, 0.0f, 1000.0f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::End();
 
@@ -160,6 +163,7 @@ int main() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         window.update();
+        recorder.save_frame();
     }
 
     glDeleteProgram(shader_program);

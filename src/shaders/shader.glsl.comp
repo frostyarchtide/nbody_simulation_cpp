@@ -3,6 +3,7 @@ R"(
 
 #define WORKGROUP_SIZE __WORKGROUP_SIZE__
 #define PARTICLE_COUNT __PARTICLE_COUNT__
+#define DELTA_TIME __DELTA_TIME__
 
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -15,8 +16,6 @@ layout(binding = 0) buffer StorageBuffer {
     particle particles[];
 } storage_buffer;
 
-uniform float delta_time;
-
 void main() {
     uint id = gl_GlobalInvocationID.x;
 
@@ -25,12 +24,12 @@ void main() {
         if (distance_squared > 0.0) {
             float force = 0.00001 / distance_squared;
             vec2 direction = normalize(storage_buffer.particles[i].position - storage_buffer.particles[id].position);
-            storage_buffer.particles[id].velocity += direction * force * delta_time;
+            storage_buffer.particles[id].velocity += direction * force * DELTA_TIME;
             barrier();
-            storage_buffer.particles[i].velocity -= direction * force * delta_time;
+            storage_buffer.particles[i].velocity -= direction * force * DELTA_TIME;
         }
     }
 
-    storage_buffer.particles[id].position += storage_buffer.particles[id].velocity * delta_time;
+    storage_buffer.particles[id].position += storage_buffer.particles[id].velocity * DELTA_TIME;
 }
 )"

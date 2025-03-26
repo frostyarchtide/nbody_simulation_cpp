@@ -1,7 +1,5 @@
 #include "window.hpp"
 
-#include <chrono>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -36,10 +34,6 @@ Window::Window(unsigned int width, unsigned int height, std::string title) {
 
     io.IniFilename = NULL;
     io.LogFilename = NULL;
-
-    last_time = std::chrono::high_resolution_clock::now();
-    current_time = last_time;
-    delta_time = 0.0f;
 }
 
 Window::~Window() {
@@ -53,12 +47,14 @@ Window::~Window() {
     glfwTerminate();
 }
 
-float Window::get_delta_time() const {
-    return delta_time;
-}
-
 bool Window::should_close() const {
     return glfwWindowShouldClose(window);
+}
+
+glm::uvec2 Window::get_resolution() const {
+    glm::uvec2 resolution;
+    glfwGetWindowSize(window, (int*) &resolution.x, (int*) &resolution.y);
+    return resolution;
 }
 
 void Window::swap_buffers() {
@@ -67,7 +63,4 @@ void Window::swap_buffers() {
 
 void Window::update() {
     swap_buffers();
-    current_time = std::chrono::high_resolution_clock::now();
-    delta_time = std::chrono::duration_cast<std::chrono::duration<float>>(current_time - last_time).count();
-    last_time = current_time;
 }
