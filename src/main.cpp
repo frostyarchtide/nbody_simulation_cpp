@@ -152,7 +152,8 @@ int main() {
         ImGui::Text("%d fps", (int) (1.0f / window.get_delta_time() + 0.5f));
         ImGui::Text("%.2f ms", window.get_delta_time() * 1000.0f);
         ImGui::Text("%lu bodies", sizeof(particles) / sizeof(particle));
-        ImGui::SliderFloat("View Scale", &view_scale, 0.001f, 1000.0f);
+
+        ImGui::DragFloat("View Scale", &view_scale, 1.0f, 0.0f, 1000.0f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::End();
 
         ImGui::Render();
