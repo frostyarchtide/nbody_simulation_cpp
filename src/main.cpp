@@ -23,7 +23,7 @@ const unsigned int WORKGROUP_SIZE = 256;
 const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 const unsigned int CIRCLE_VERTICES = 64;
-const float CIRCLE_RADIUS = 0.01f;
+const float CIRCLE_RADIUS = 0.02f;
 
 typedef struct particle {
     glm::vec2 position;
@@ -58,6 +58,11 @@ int main() {
         vertex_shader_source.find("__PARTICLE_COUNT__"),
         std::string("__PARTICLE_COUNT__").length(),
         std::to_string(PARTICLE_COUNT)
+    );
+    vertex_shader_source.replace(
+        vertex_shader_source.find("__CIRCLE_RADIUS__"),
+        std::string("__CIRCLE_RADIUS__").length(),
+        std::to_string(CIRCLE_RADIUS)
     );
     const char* vertex_shader_source_c_str = vertex_shader_source.c_str();
 

@@ -23,6 +23,8 @@ Window::Window(unsigned int width, unsigned int height, std::string title) {
     }
 
     glfwMakeContextCurrent(window);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     debug::print_info((const char*) glGetString(GL_VERSION), "OPENGL VERSION");
 
     IMGUI_CHECKVERSION();
