@@ -1,12 +1,15 @@
 #include <cmath>
 #include <string>
 
+#define GLM_ENABLE_EXPERIMENTAL
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 #include <epoxy/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <glm/gtx/rotate_vector.hpp>
 
 #include "debug.hpp"
 #include "window.hpp"
@@ -93,6 +96,7 @@ int main() {
         float angle = 2.0f * M_PI * (rand() / (float) RAND_MAX);
         float distance = rand() / (float) RAND_MAX;
         particles[i].position = glm::vec2(cos(angle), sin(angle)) * distance;
+        particles[i].velocity = glm::rotate(glm::normalize(particles[i].position), M_PI_2f) * glm::sqrt(0.01f / distance);
     }
 
     unsigned int storage_buffers[2];

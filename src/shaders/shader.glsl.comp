@@ -24,12 +24,12 @@ uniform float delta_time;
 void main() {
     uint id = gl_GlobalInvocationID.x;
     for (uint i = id + 1; i < instances; i++) {
-        float distance_squared = pow(storage_buffer.particles[i].position.y - storage_buffer.particles[id].position.y, 2.0) + pow(storage_buffer.particles[i].position.x - storage_buffer.particles[id].position.x, 2.0);
+        float distance_squared = pow(storage_buffer.particles[i].position.y - storage_buffer.particles[id].position.y, 2.0) + pow(storage_buffer.particles[i].position.x - storage_buffer.particles[id].position.x, 2.0) + 0.01;
         if (distance_squared > 0.0) {
             float force = 0.00001 / distance_squared;
             vec2 direction = normalize(storage_buffer.particles[i].position - storage_buffer.particles[id].position);
-            // new_storage_buffer.particles[id].velocity += direction * force * delta_time;
-            // new_storage_buffer.particles[i].velocity -= direction * force * delta_time;
+            new_storage_buffer.particles[id].velocity += direction * force * delta_time;
+            new_storage_buffer.particles[i].velocity -= direction * force * delta_time;
         }
     }
     new_storage_buffer.particles[id].position += new_storage_buffer.particles[id].velocity * delta_time;
