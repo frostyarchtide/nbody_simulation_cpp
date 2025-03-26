@@ -57,7 +57,7 @@ void Recorder::save_frame(std::string filepath) {
 void Recorder::encode_frames(std::string filepath) {
     std::string command = "ffmpeg -framerate "
         + std::to_string(framerate)
-        + " -i "
+        + " -y -i "
         + path
         + "/%d.ppm -c:v libx264 -pix_fmt yuv420p "
         + path
@@ -70,7 +70,7 @@ void Recorder::encode_frames(std::string filepath) {
         debug::print_info("Saved recording to \"" + filepath + "\"", "RECORDER");
     }
 
-    command = "rm -r "
+    command = "rm "
         + path
         + "/*.ppm";
 

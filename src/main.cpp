@@ -18,7 +18,7 @@
 
 const unsigned int PARTICLE_COUNT = 2 << 14;
 const unsigned int WORKGROUP_SIZE = 256;
-const unsigned int FRAMERATE = 60;
+const unsigned int FRAMERATE = 120;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 
 typedef struct particle {
