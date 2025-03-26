@@ -6,14 +6,17 @@
 #include <imgui_impl_opengl3.h>
 #include <epoxy/gl.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 #include "debug.hpp"
-#include "math.hpp"
 #include "window.hpp"
 
+const unsigned int PARTICLE_COUNT = 2 << 14;
+const unsigned int WORKGROUP_SIZE = 256;
+
 typedef struct particle {
-    vec2 position;
-    vec2 velocity;
+    glm::vec2 position;
+    glm::vec2 velocity;
 } particle;
 
 int main() {
@@ -54,12 +57,18 @@ int main() {
     glDeleteShader(fragment_shader);
     glDeleteShader(vertex_shader);
 
-    const char* compute_shader_source =
+    std::string compute_shader_source =
         #include "shaders/shader.glsl.comp"
         ;
 
+    compute_shader_source.replace(
+        compute_shader_source.find("__WORKGROUP_SIZE__"),
+        sizeof("__WORKGROUP_SIZE__"), std::to_string(WORKGROUP_SIZE)
+    );
+    const char* compute_shader_source_c_str = compute_shader_source.c_str();
+
     unsigned int compute_shader = glCreateShader(GL_COMPUTE_SHADER);
-    glShaderSource(compute_shader, 1, &compute_shader_source, nullptr);
+    glShaderSource(compute_shader, 1, &compute_shader_source_c_str, nullptr);
     glCompileShader(compute_shader);
     debug::verify_shader_compilation(compute_shader, "shader.glsl.comp");
 
@@ -67,15 +76,23 @@ int main() {
     glAttachShader(compute_program, compute_shader);
     glLinkProgram(compute_program);
 
-    particle particles[2 << 10];
+    particle particles[PARTICLE_COUNT];
+    if ((sizeof(particles) / sizeof(particle)) % WORKGROUP_SIZE != 0)
+        debug::print_error(
+            std::string("Particle count is factorable by workgroup size (")
+            + std::to_string(sizeof(particles) / sizeof(particle))
+            + " % "
+            + std::to_string(WORKGROUP_SIZE)
+            + " == "
+            + std::to_string((sizeof(particles) / sizeof(particle)) % WORKGROUP_SIZE)
+            + ")",
+            true
+        );
+
     for (unsigned int i = 0; i < sizeof(particles) / sizeof(particle); i++) {
-        particles[i] = {
-            {
-                2.0f * (rand() / (float) RAND_MAX - 0.5f),
-                2.0f * (rand() / (float) RAND_MAX - 0.5f),
-            },
-            { 0.0f, 0.0f }
-        };
+        float angle = 2.0f * M_PI * (rand() / (float) RAND_MAX);
+        float distance = rand() / (float) RAND_MAX;
+        particles[i].position = glm::vec2(cos(angle), sin(angle)) * distance;
     }
 
     unsigned int storage_buffers[2];
@@ -98,7 +115,7 @@ int main() {
 
         glUseProgram(compute_program);
         glUniform1f(glGetUniformLocation(compute_program, "delta_time"), window.get_delta_time());
-        glDispatchCompute(sizeof(particles) / sizeof(particle), 1, 1);
+        glDispatchCompute(sizeof(particles) / sizeof(particle) / WORKGROUP_SIZE, 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         glBindBuffer(GL_COPY_READ_BUFFER, storage_buffers[new_buffer]);
