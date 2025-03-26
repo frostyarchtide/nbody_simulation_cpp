@@ -18,7 +18,8 @@
 
 const unsigned int PARTICLE_COUNT = 2 << 14;
 const unsigned int WORKGROUP_SIZE = 256;
-const float DELTA_TIME = 1.0f / 60.0f;
+const unsigned int FRAMERATE = 60;
+const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 
 typedef struct particle {
     glm::vec2 position;
@@ -27,7 +28,7 @@ typedef struct particle {
 
 int main() {
     Window window(800, 600, "N-Body Simulation");
-    Recorder recorder(window, "images");
+    Recorder recorder(window, FRAMERATE, "recordings");
 
     float vertices[] = {
         0.0f, 0.0f,
@@ -130,6 +131,8 @@ int main() {
     glm::mat4 view_matrix = glm::ortho(-400.0f, 400.0f, -300.0f, 300.0f);
     float view_scale = 100.0f;
 
+    recorder.start_recording();
+
     while (!window.should_close()) {
         glfwPollEvents();
 
@@ -157,13 +160,15 @@ int main() {
 
         ImGui::Begin("Debug", NULL, flags);
         ImGui::DragFloat("View Scale", &view_scale, 1.0f, 0.0f, 1000.0f, "%.0f", ImGuiSliderFlags_AlwaysClamp);
+        if (ImGui::Button("Start Recording")) recorder.start_recording();
+        if (ImGui::Button("Stop Recording")) recorder.stop_recording();
         ImGui::End();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         window.update();
-        recorder.save_frame();
+        recorder.update();
     }
 
     glDeleteProgram(shader_program);
