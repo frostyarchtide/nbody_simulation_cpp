@@ -12,6 +12,7 @@ public:
     void update();
     void start_recording();
     void stop_recording();
+    void clean_up_images();
     void save_frame(std::string filepath);
     void encode_frames(std::string filepath);
 

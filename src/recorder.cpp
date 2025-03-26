@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <thread>
 
 #include "debug.hpp"
 
@@ -14,7 +15,7 @@ Recorder::Recorder(const Window& window, unsigned int framerate, std::string pat
 }
 
 Recorder::~Recorder() {
-    if (recording) stop_recording();
+    clean_up_images();
 }
 
 void Recorder::update() {
@@ -25,14 +26,28 @@ void Recorder::update() {
 void Recorder::start_recording() {
     if (recording) return;
     recording = true;
+    frame = 0;
     debug::print_info("Started recording", "RECORDER");
+    clean_up_images();
 }
 
 void Recorder::stop_recording() {
     if (!recording) return;
     recording = false;
     debug::print_info("Stopped recording after " + std::to_string(frame) + " frames", "RECORDER");
-    encode_frames("output.mp4");
+    
+    std::thread encoding_thread(&Recorder::encode_frames, this, "output.mp4");
+    encoding_thread.detach();
+}
+
+void Recorder::clean_up_images() {
+    std::string command = "rm -f "
+        + path
+        + "/*.ppm";
+
+    if (system(command.c_str()) != 0) {
+        debug::print_error("Failed to clean up images in \"" + path +"\"", false, "RECORDER");
+    }
 }
 
 void Recorder::save_frame(std::string filepath) {
@@ -62,7 +77,8 @@ void Recorder::encode_frames(std::string filepath) {
         + "/%d.ppm -c:v libx264 -pix_fmt yuv420p "
         + path
         + "/"
-        + filepath;
+        + filepath
+        + " > /dev/null 2> /dev/null";
 
     if (system(command.c_str()) != 0) {
         debug::print_error("Failed to save recording to \"" + filepath + "\"", false, "RECORDER");
@@ -70,11 +86,5 @@ void Recorder::encode_frames(std::string filepath) {
         debug::print_info("Saved recording to \"" + filepath + "\"", "RECORDER");
     }
 
-    command = "rm "
-        + path
-        + "/*.ppm";
-
-    if (system(command.c_str()) != 0) {
-        debug::print_error("Failed to clean up images in \"" + filepath +"\"", false, "RECORDER");
-    }
+    clean_up_images();
 }
