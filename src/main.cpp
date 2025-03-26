@@ -1,3 +1,6 @@
+#include <cmath>
+#include <string>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -5,7 +8,10 @@
 #include <GLFW/glfw3.h>
 
 #include "debug.hpp"
+#include "math.hpp"
 #include "window.hpp"
+
+const float G = 1.0e-3;
 
 int main() {
     Window window(800, 600, "N-Body Simulation");
@@ -46,12 +52,50 @@ int main() {
     glDeleteShader(vertex_shader);
 
     glUseProgram(shader_program);
+
+    vec2 velocities[2 << 9] = { 0.0f, 0.0f };
+    vec2 points[2 << 9];
+    for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
+        points[i] = {
+            2.0f * (rand() / (float) RAND_MAX - 0.5f),
+            2.0f * (rand() / (float) RAND_MAX - 0.5f),
+        };
+    }
+
+    unsigned int storage_buffer;
+    glGenBuffers(1, &storage_buffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, storage_buffer);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffer);
     
+    glUniform1ui(glGetUniformLocation(shader_program, "instances"), sizeof(points) / sizeof(vec2));
+
     while (!window.should_close()) {
         glfwPollEvents();
-        glClear(GL_COLOR_BUFFER_BIT);
 
-        glDrawArraysInstanced(GL_POINTS, 0, 1, 1000);
+        for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
+            for (unsigned int j = i; j < sizeof(points) / sizeof(vec2); j++) {
+                float distance_squared =
+                    pow(points[j].x - points[i].x, 2.0)
+                    + pow(points[j].y - points[i].y, 2.0);
+
+                if (distance_squared != 0.0) {
+                    float force = 1.0 / distance_squared;
+                    vec2 direction = (points[j] - points[i]).normalized();
+                    velocities[i] += direction * force * window.get_delta_time() * G;
+                    velocities[j] -= direction * force * window.get_delta_time() * G;
+                }
+            }
+        }
+
+        for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
+            points[i] += velocities[i] * window.get_delta_time();
+        }
+
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW);
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArraysInstanced(GL_POINTS, 0, 1, sizeof(points) / sizeof(vec2));
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -67,6 +111,7 @@ int main() {
         ImGui::Begin("Debug", NULL, flags);
         ImGui::Text("%d fps", (int) (1.0f / window.get_delta_time() + 0.5f));
         ImGui::Text("%.2f ms", window.get_delta_time() * 1000.0f);
+        ImGui::Text("%lu bodies", sizeof(points) / sizeof(vec2));
         ImGui::End();
 
         ImGui::Render();
