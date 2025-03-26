@@ -11,8 +11,10 @@
 #include "math.hpp"
 #include "window.hpp"
 
-const float G = 1.0e-3;
-const unsigned int PARTICLES = 2 << 10;
+typedef struct particle {
+    vec2 position;
+    vec2 velocity;
+} particle;
 
 int main() {
     Window window(800, 600, "N-Body Simulation");
@@ -37,7 +39,7 @@ int main() {
     unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vertex_shader, 1, &vertex_shader_source, nullptr);
     glCompileShader(vertex_shader);
-    debug::verify_shader_compilation(vertex_shader);
+    debug::verify_shader_compilation(vertex_shader, "shader.glsl.vert");
 
     unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment_shader, 1, &fragment_shader_source, nullptr);
@@ -52,51 +54,55 @@ int main() {
     glDeleteShader(fragment_shader);
     glDeleteShader(vertex_shader);
 
-    glUseProgram(shader_program);
+    const char* compute_shader_source =
+        #include "shaders/shader.glsl.comp"
+        ;
 
-    vec2 velocities[PARTICLES] = { 0.0f, 0.0f };
-    vec2 points[PARTICLES];
-    for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
-        points[i] = {
-            2.0f * (rand() / (float) RAND_MAX - 0.5f),
-            2.0f * (rand() / (float) RAND_MAX - 0.5f),
+    unsigned int compute_shader = glCreateShader(GL_COMPUTE_SHADER);
+    glShaderSource(compute_shader, 1, &compute_shader_source, nullptr);
+    glCompileShader(compute_shader);
+    debug::verify_shader_compilation(compute_shader, "shader.glsl.comp");
+
+    unsigned int compute_program = glCreateProgram();
+    glAttachShader(compute_program, compute_shader);
+    glLinkProgram(compute_program);
+
+    particle particles[2 << 10];
+    for (unsigned int i = 0; i < sizeof(particles) / sizeof(particle); i++) {
+        particles[i] = {
+            {
+                2.0f * (rand() / (float) RAND_MAX - 0.5f),
+                2.0f * (rand() / (float) RAND_MAX - 0.5f),
+            },
+            { 0.0f, 0.0f }
         };
     }
 
-    unsigned int storage_buffer;
-    glGenBuffers(1, &storage_buffer);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, storage_buffer);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffer);
+    unsigned int storage_buffers[2];
+    glGenBuffers(2, storage_buffers);
+    for (unsigned int i = 0; i < 2; i++) {
+        debug::print_info(std::to_string(storage_buffers[i]));
+        glBindBuffer(GL_SHADER_STORAGE_BUFFER, storage_buffers[i]);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(particles), particles, GL_DYNAMIC_DRAW);
+    }
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffers[0]);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, storage_buffers[1]);
     
-    glUniform1ui(glGetUniformLocation(shader_program, "instances"), sizeof(points) / sizeof(vec2));
+    glUniform1ui(glGetUniformLocation(shader_program, "instances"), sizeof(particles) / sizeof(particle));
+    glUniform1ui(glGetUniformLocation(compute_program, "instances"), sizeof(particles) / sizeof(particle));
 
     while (!window.should_close()) {
         glfwPollEvents();
 
-        for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
-            for (unsigned int j = i; j < sizeof(points) / sizeof(vec2); j++) {
-                float distance_squared =
-                    pow(points[j].x - points[i].x, 2.0)
-                    + pow(points[j].y - points[i].y, 2.0);
-
-                if (distance_squared != 0.0) {
-                    float force = 1.0 / distance_squared;
-                    vec2 direction = (points[j] - points[i]).normalized();
-                    velocities[i] += direction * force * window.get_delta_time() * G;
-                    velocities[j] -= direction * force * window.get_delta_time() * G;
-                }
-            }
-        }
-
-        for (unsigned int i = 0; i < sizeof(points) / sizeof(vec2); i++) {
-            points[i] += velocities[i] * window.get_delta_time();
-        }
-
-        glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(points), points, GL_DYNAMIC_DRAW);
+        glUseProgram(compute_program);
+        glDispatchCompute(sizeof(particles) / sizeof(particle), 1, 1);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArraysInstanced(GL_POINTS, 0, 1, sizeof(points) / sizeof(vec2));
+
+        glUseProgram(shader_program);
+        glDrawArraysInstanced(GL_POINTS, 0, 1, sizeof(particles) / sizeof(particle));
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -112,7 +118,7 @@ int main() {
         ImGui::Begin("Debug", NULL, flags);
         ImGui::Text("%d fps", (int) (1.0f / window.get_delta_time() + 0.5f));
         ImGui::Text("%.2f ms", window.get_delta_time() * 1000.0f);
-        ImGui::Text("%lu bodies", sizeof(points) / sizeof(vec2));
+        ImGui::Text("%lu bodies", sizeof(particles) / sizeof(particle));
         ImGui::End();
 
         ImGui::Render();
