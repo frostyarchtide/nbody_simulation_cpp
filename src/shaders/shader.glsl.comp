@@ -20,8 +20,10 @@ uniform uint instances;
 
 void main() {
     uint id = gl_GlobalInvocationID.x;
-    for (uint i = id; i < instances; i++) {
-        
+    for (uint i = id + 1; i < instances; i++) {
+        float distance_squared = pow(storage_buffer.particles[i].position.y - storage_buffer.particles[id].position.y, 2.0) + pow(storage_buffer.particles[i].position.x - storage_buffer.particles[id].position.x, 2.0);
+        new_storage_buffer.particles[id].velocity += vec2(distance_squared * 0.0001, 0.0);
     }
+    new_storage_buffer.particles[id].position += new_storage_buffer.particles[id].velocity;
 }
 )"

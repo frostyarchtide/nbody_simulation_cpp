@@ -88,6 +88,8 @@ int main() {
 
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffers[0]);
     glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, storage_buffers[1]);
+
+    unsigned int new_buffer = 1;
     
     glUniform1ui(glGetUniformLocation(shader_program, "instances"), sizeof(particles) / sizeof(particle));
     glUniform1ui(glGetUniformLocation(compute_program, "instances"), sizeof(particles) / sizeof(particle));
@@ -98,6 +100,13 @@ int main() {
         glUseProgram(compute_program);
         glDispatchCompute(sizeof(particles) / sizeof(particle), 1, 1);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+
+        glBindBuffer(GL_COPY_READ_BUFFER, storage_buffers[new_buffer]);
+        glBindBuffer(GL_COPY_WRITE_BUFFER, storage_buffers[1 - new_buffer]);
+        glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, 0, sizeof(particles));
+        new_buffer = (new_buffer == 1) ? 0 : 1;
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, storage_buffers[1 - new_buffer]);
+        glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, storage_buffers[new_buffer]);
 
         glClear(GL_COLOR_BUFFER_BIT);
 
