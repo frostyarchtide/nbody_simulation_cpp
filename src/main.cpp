@@ -18,7 +18,7 @@
 
 const unsigned int PARTICLE_COUNT = 2 << 14;
 const unsigned int WORKGROUP_SIZE = 256;
-const unsigned int FRAMERATE = 120;
+const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 
 typedef struct particle {
@@ -131,8 +131,6 @@ int main() {
     glm::mat4 view_matrix = glm::ortho(-400.0f, 400.0f, -300.0f, 300.0f);
     float view_scale = 100.0f;
 
-    recorder.start_recording();
-
     while (!window.should_close()) {
         glfwPollEvents();
 
@@ -147,6 +145,7 @@ int main() {
         glUniformMatrix4fv(glGetUniformLocation(shader_program, "view_matrix"), 1, GL_FALSE, &new_view_matrix[0][0]);
 
         glDrawArraysInstanced(GL_POINTS, 0, 1, sizeof(particles) / sizeof(particle));
+        recorder.update();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -168,7 +167,6 @@ int main() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         window.update();
-        recorder.update();
     }
 
     glDeleteProgram(shader_program);
