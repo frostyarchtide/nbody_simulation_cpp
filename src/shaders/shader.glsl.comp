@@ -2,6 +2,7 @@ R"(
 #version 430
 
 #define WORKGROUP_SIZE __WORKGROUP_SIZE__
+#define PARTICLE_COUNT __PARTICLE_COUNT__
 
 layout(local_size_x = WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -14,24 +15,22 @@ layout(binding = 0) buffer StorageBuffer {
     particle particles[];
 } storage_buffer;
 
-layout(binding = 1) buffer NewStorageBuffer {
-    particle particles[];
-} new_storage_buffer;
-
-uniform uint instances;
 uniform float delta_time;
 
 void main() {
     uint id = gl_GlobalInvocationID.x;
-    for (uint i = id + 1; i < instances; i++) {
-        float distance_squared = pow(storage_buffer.particles[i].position.y - storage_buffer.particles[id].position.y, 2.0) + pow(storage_buffer.particles[i].position.x - storage_buffer.particles[id].position.x, 2.0) + 0.01;
+
+    for (uint i = id + 1; i < PARTICLE_COUNT; i++) {
+        float distance_squared = pow(storage_buffer.particles[i].position.y - storage_buffer.particles[id].position.y, 2.0) + pow(storage_buffer.particles[i].position.x - storage_buffer.particles[id].position.x, 2.0) + 0.001;
         if (distance_squared > 0.0) {
             float force = 0.00001 / distance_squared;
             vec2 direction = normalize(storage_buffer.particles[i].position - storage_buffer.particles[id].position);
-            new_storage_buffer.particles[id].velocity += direction * force * delta_time;
-            new_storage_buffer.particles[i].velocity -= direction * force * delta_time;
+            storage_buffer.particles[id].velocity += direction * force * delta_time;
+            barrier();
+            storage_buffer.particles[i].velocity -= direction * force * delta_time;
         }
     }
-    new_storage_buffer.particles[id].position += new_storage_buffer.particles[id].velocity * delta_time;
+
+    storage_buffer.particles[id].position += storage_buffer.particles[id].velocity * delta_time;
 }
 )"
