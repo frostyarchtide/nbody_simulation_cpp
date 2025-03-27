@@ -34,7 +34,7 @@ void Recorder::start_recording() {
 void Recorder::stop_recording() {
     if (!recording) return;
     recording = false;
-    debug::print_info("Stopped recording after " + std::to_string(frame) + " frames", "RECORDER");
+    debug::print_info("Stopped recording after " + std::to_string(frame + 1) + " frames", "RECORDER");
     
     std::thread encoding_thread(&Recorder::encode_frames, this, "output.mp4");
     encoding_thread.detach();
