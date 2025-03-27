@@ -1,5 +1,6 @@
 #include <cmath>
 #include <string>
+#include <time.h>
 
 #define GLM_ENABLE_EXPERIMENTAL
 
@@ -24,6 +25,8 @@ const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 const unsigned int CIRCLE_VERTICES = 64;
 const float CIRCLE_RADIUS = 0.02f;
+const float G = 0.0001f;
+const float DAMPENING = 0.01f;
 
 typedef struct particle {
     glm::vec2 position;
@@ -31,6 +34,8 @@ typedef struct particle {
 } particle;
 
 int main() {
+    srand(time(NULL));
+
     Window window(RESOLUTION.x, RESOLUTION.y, "N-Body Simulation");
     Recorder recorder(window, FRAMERATE, "recordings");
 
@@ -107,6 +112,16 @@ int main() {
         std::string("__DELTA_TIME__").length(),
         std::to_string(DELTA_TIME)
     );
+    compute_shader_source.replace(
+        compute_shader_source.find("__G__"),
+        std::string("__G__").length(),
+        std::to_string(G)
+    );
+    compute_shader_source.replace(
+        compute_shader_source.find("__DAMPENING__"),
+        std::string("__DAMPENING__").length(),
+        std::to_string(DAMPENING)
+    );
     const char* compute_shader_source_c_str = compute_shader_source.c_str();
 
     unsigned int compute_shader = glCreateShader(GL_COMPUTE_SHADER);
@@ -137,7 +152,7 @@ int main() {
         particles[i].position = glm::vec2(cos(angle), sin(angle)) * distance;
         particles[i].velocity =
             glm::rotate(glm::normalize(particles[i].position), M_PI_2f)
-            * glm::sqrt(0.05f / distance);
+            * glm::sqrt(0.5f / distance);
     }
 
     unsigned int storage_buffer;
@@ -189,7 +204,7 @@ int main() {
             | ImGuiWindowFlags_NoTitleBar;
 
         ImGui::Begin("Debug", NULL, flags);
-        ImGui::DragFloat("View Scale", &view_scale, 0.1f, 0.0f, 10.0f, "%.1f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::DragFloat("View Scale", &view_scale, 0.01f, 0.01f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
         if (ImGui::Button("Start Recording")) recorder.start_recording();
         if (ImGui::Button("Stop Recording")) recorder.stop_recording();
         ImGui::End();

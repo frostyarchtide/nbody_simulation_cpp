@@ -26,7 +26,7 @@ void main() {
     gl_Position = view_matrix * projection_matrix * vec4(position, 0.0, 1.0) + offset;
 
     float alpha = 1.0 - length(position) / CIRCLE_RADIUS;
-    float speed_factor = length(storage_buffer.particles[gl_InstanceID].velocity) / 1.0;
+    float speed_factor = length(storage_buffer.particles[gl_InstanceID].velocity) / 2.0;
     vec4 color = mix(vec4(0.0, 0.25, 1.0, 0.0), vec4(1.0, 0.25, 0.0, 1.0), speed_factor);
     color.a = mix(0.0, color.a, alpha);
     vertex_color = color;
