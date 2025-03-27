@@ -152,7 +152,7 @@ int main() {
         particles[i].position = glm::vec2(cos(angle), sin(angle)) * distance;
         particles[i].velocity =
             glm::rotate(glm::normalize(particles[i].position), M_PI_2f)
-            * glm::sqrt(0.5f / distance);
+            * glm::sqrt(0.5f / (distance + DAMPENING));
     }
 
     unsigned int storage_buffer;
