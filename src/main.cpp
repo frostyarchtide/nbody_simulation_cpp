@@ -183,7 +183,10 @@ int main() {
             glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         }
 
-        stepping = false;
+        if (stepping) {
+            stepping = false;
+            paused = true;
+        }
 
         glClear(GL_COLOR_BUFFER_BIT);
 
