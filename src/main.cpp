@@ -19,13 +19,13 @@
 
 const glm::uvec2 RESOLUTION = glm::uvec2(800, 600);
 const float ASPECT_RATIO = RESOLUTION.y / (float) RESOLUTION.x;
-const unsigned int PARTICLE_COUNT = 2 << 14;
-const unsigned int WORKGROUP_SIZE = 256;
+const unsigned int PARTICLE_COUNT = 2 << 12;
+const unsigned int WORKGROUP_SIZE = 16;
 const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 const unsigned int CIRCLE_VERTICES = 64;
 const float CIRCLE_RADIUS = 0.01f;
-const float G = 0.0001f;
+const float G = 0.0005f;
 const float DAMPENING = 0.01f;
 
 typedef struct particle {
@@ -171,13 +171,19 @@ int main() {
     );
 
     float view_scale = 1.0f;
+    bool paused = true;
+    bool stepping = false;
 
     while (!window.should_close()) {
         glfwPollEvents();
 
-        glUseProgram(compute_program);
-        glDispatchCompute(PARTICLE_COUNT / WORKGROUP_SIZE, 1, 1);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        if (!paused || stepping) {
+            glUseProgram(compute_program);
+            glDispatchCompute(PARTICLE_COUNT / WORKGROUP_SIZE, 1, 1);
+            glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        }
+
+        stepping = false;
 
         glClear(GL_COLOR_BUFFER_BIT);
 
@@ -205,6 +211,8 @@ int main() {
 
         ImGui::Begin("Debug", NULL, flags);
         ImGui::DragFloat("View Scale", &view_scale, 0.01f, 0.01f, 10.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::Checkbox("Paused", &paused);
+        if (ImGui::Button("Step")) stepping = true;
         if (ImGui::Button("Start Recording")) recorder.start_recording();
         if (ImGui::Button("Stop Recording")) recorder.stop_recording();
         ImGui::End();
