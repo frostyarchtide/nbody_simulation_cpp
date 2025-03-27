@@ -24,7 +24,7 @@ const unsigned int WORKGROUP_SIZE = 256;
 const unsigned int FRAMERATE = 60;
 const float DELTA_TIME = 1.0f / (float) FRAMERATE;
 const unsigned int CIRCLE_VERTICES = 64;
-const float CIRCLE_RADIUS = 0.02f;
+const float CIRCLE_RADIUS = 0.01f;
 const float G = 0.0001f;
 const float DAMPENING = 0.01f;
 
