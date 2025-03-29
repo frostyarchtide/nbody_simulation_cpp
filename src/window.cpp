@@ -16,7 +16,7 @@ Window::Window(unsigned int width, unsigned int height, std::string title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_COMPAT_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    window = glfwCreateWindow(800, 600, title.c_str(), nullptr, nullptr);
+    window = glfwCreateWindow(width, height, title.c_str(), nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         debug::print_error("GLFW failed to create window", true);
